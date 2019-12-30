@@ -8,6 +8,7 @@
 *.ref
 config.toml
 db.json
+*_test.go
 
 # Test binary, build with `go test -c`
 *.test
