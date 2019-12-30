@@ -6,7 +6,8 @@
 *.dylib
 *.swp
 *.ref
-config.json
+config.toml
+db.json
 
 # Test binary, build with `go test -c`
 *.test
