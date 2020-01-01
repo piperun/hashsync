@@ -1,8 +1,13 @@
 package main
 
 import (
-	"github.com/piperun/hashsync/hashfunc"
+	"log"
+
 	"github.com/piperun/hashsync/netcom"
+	"github.com/piperun/hashsync/registry"
+
+	"github.com/piperun/hashsync/config"
+	"github.com/piperun/hashsync/hashfunc"
 )
 
 type OSvars struct {
@@ -10,13 +15,19 @@ type OSvars struct {
 }
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Llongfile)
 	var (
-		filename string
+		filename     string
+		conf_content config.Content
 	)
+
+	registry.HandleFlags()
+
+	conf_content.Setup(registry.GetConfigPath())
+	conf_content.LoadTree()
 
 	filename = ""
 	hashfunc.CRC32(filename)
 	hashfunc.SHA256(filename)
-	netcom.SFTPConnect()
-
+	netcom.SFTPConnect(conf_content)
 }
