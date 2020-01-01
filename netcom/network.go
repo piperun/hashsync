@@ -7,23 +7,31 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/piperun/hashsync/config"
+
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
-func SFTPConnect() {
-	user := ""
-	pass := ""
-	remote := ""
-	port := ":22"
+type Connection struct {
+	Client client
+}
+
+type client struct {
+	ssh  *ssh.Client
+	sftp *sftp.Client
+}
+
+func SFTPConnect(content config.Content) {
+	user := getUser(content)
 
 	// get host public key
 	//hostKey := getHostKey(remote)
 
 	config := &ssh.ClientConfig{
-		User: user,
+		User: user["user"],
 		Auth: []ssh.AuthMethod{
-			ssh.Password(pass),
+			ssh.Password(user["password"]),
 		},
 		//Temporary solution
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
@@ -31,7 +39,7 @@ func SFTPConnect() {
 	}
 
 	// connect
-	conn, err := ssh.Dial("tcp", remote+port, config)
+	conn, err := ssh.Dial("tcp", user["conn_ip"]+":"+user["conn_port"], config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,13 +53,29 @@ func SFTPConnect() {
 	defer sftp.Close()
 
 	// walk a directory
-	w := sftp.Walk("")
+	w := sftp.Walk("/etc")
 	for w.Step() {
 		if w.Err() != nil {
 			continue
 		}
 		log.Println(w.Path())
 	}
+}
+
+// Local functions
+
+func getUser(content config.Content) map[string]string {
+	var user = map[string]string{
+		"user":      "",
+		"password":  "",
+		"conn_ip":   "",
+		"conn_port": "",
+	}
+
+	for k, _ := range user {
+		user[k] = content.Query("SSH." + k)
+	}
+	return user
 }
 
 func getHostKey(host string) ssh.PublicKey {
