@@ -18,48 +18,80 @@ type Connection struct {
 }
 
 type client struct {
-	ssh  *ssh.Client
-	sftp *sftp.Client
+	ssh    *ssh.Client
+	sftp   *sftp.Client
+	config *ssh.ClientConfig
 }
 
-func SFTPConnect(content config.Content) {
+type authdata struct {
+	user       map[string]string
+	authmethod uint
+}
+
+func (connection *Connection) Connect(content config.Content) {
+	var err error
 	user := getUser(content)
+	auth := authdata{
+		user: user,
+	}
+
+	connection.Client.SetClientConfig(auth)
+
+	// connect
+	connection.Client.ssh, err = ssh.Dial("tcp", user["conn_ip"]+":"+user["conn_port"], connection.Client.config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// open an SFTP session over an existing ssh connection.
+	connection.Client.sftp, err = sftp.NewClient(connection.Client.ssh)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+}
+
+func (client *client) SetClientConfig(auth authdata) {
 
 	// get host public key
 	//hostKey := getHostKey(remote)
 
-	config := &ssh.ClientConfig{
-		User: user["user"],
-		Auth: []ssh.AuthMethod{
-			ssh.Password(user["password"]),
-		},
+	authmethod := []ssh.AuthMethod{}
+
+	if auth.user["key"] != "" {
+		// TODO
+	}
+
+	if auth.user["user"] != "" && auth.user["password"] != "" {
+		authmethod = append(authmethod, ssh.Password(auth.user["password"]))
+	}
+
+	client.config = &ssh.ClientConfig{
+		User: auth.user["user"],
+		Auth: authmethod,
 		//Temporary solution
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		//HostKeyCallback: ssh.FixedHostKey(hostKey),
 	}
+}
 
-	// connect
-	conn, err := ssh.Dial("tcp", user["conn_ip"]+":"+user["conn_port"], config)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
+func (client *client) ListRemote(path string) []string {
+	var arr []string
 
-	// open an SFTP session over an existing ssh connection.
-	sftp, err := sftp.NewClient(conn)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer sftp.Close()
-
-	// walk a directory
-	w := sftp.Walk("/etc")
+	w := client.sftp.Walk(path)
 	for w.Step() {
 		if w.Err() != nil {
 			continue
 		}
-		log.Println(w.Path())
+		arr = append(arr, w.Path())
 	}
+	return arr
+}
+
+// Disconnect closes sftp & ssh connection
+func (client *client) Disconnect() {
+	client.sftp.Close()
+	client.ssh.Close()
 }
 
 // Local functions

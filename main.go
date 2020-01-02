@@ -20,6 +20,7 @@ func main() {
 		filename     string
 		conf_content config.Content
 	)
+	connection := netcom.Connection{}
 
 	registry.HandleFlags()
 
@@ -29,5 +30,7 @@ func main() {
 	filename = ""
 	hashfunc.CRC32(filename)
 	hashfunc.SHA256(filename)
-	netcom.SFTPConnect(conf_content)
+	connection.Connect(conf_content)
+	connection.Client.Disconnect()
+
 }
