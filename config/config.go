@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/pelletier/go-toml"
-	"github.com/piperun/hashsync/utils"
+	"github.com/piperun/hashsync/fileIO"
 )
 
 // SSH options
@@ -66,7 +66,7 @@ func (content *Content) LoadTree() {
 
 func (content *Content) Setup(path string) {
 	content.Path = path
-	if !utils.CheckFile(path) && len(path) > 0 {
+	if !fileIO.CheckFile(path) && len(path) > 0 {
 		content.createConf()
 	}
 }
