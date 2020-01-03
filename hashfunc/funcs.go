@@ -8,26 +8,38 @@ import (
 	"io"
 	"log"
 	"os"
+
+	"github.com/piperun/hashsync/fileIO"
 )
 
-func openFile(filename string, fp **os.File) {
-	file, err := os.Open(filename)
-	if err != nil {
-		log.Print(err)
+type Object struct {
+	hash hash.Hash32
+	File interface{}
+}
+
+func (object *Object) convertFiletoHash() {
+	const size int64 = 1e9
+	switch file := object.File.(type) {
+	case fileIO.LocalFile:
+		if _, err := io.Copy(object.hash, file.Data); err != nil {
+			log.Print(err)
+		}
+		defer file.Close()
+	case fileIO.RemoteFile:
+		if _, err := io.Copy(object.hash, file.Data); err != nil {
+			log.Print(err)
+		}
+		defer file.Close()
 	}
-	*fp = file
 }
 
 // CRC32 hash function
-func CRC32(filename string, hashversion ...string) string {
+func (object *Object) CRC32(hashversion ...string) string {
 	var (
 		versions   = make(map[string]uint32)
 		table      *crc32.Table
 		hashstring string
-		file       *os.File
 	)
-
-	openFile(filename, &file)
 
 	versions["C"] = 0x82F63B78
 	versions["K"] = 0xEB31D82E
@@ -40,18 +52,14 @@ func CRC32(filename string, hashversion ...string) string {
 		table = crc32.MakeTable(versions[hashversion[0]])
 	}
 
-	hash := crc32.New(table)
+	object.hash = crc32.New(table)
+	object.convertFiletoHash()
 
-	if _, err := io.Copy(hash, file); err != nil {
-		log.Print(err)
-	}
-
-	hashstring = hex.EncodeToString(hash.Sum(nil)[:])
+	hashstring = hex.EncodeToString(object.hash.Sum(nil)[:])
 	if false {
 		log.Print(hashstring)
 	}
 
-	defer file.Close()
 	return hashstring
 
 }
