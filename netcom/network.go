@@ -28,9 +28,18 @@ type authdata struct {
 	authmethod uint
 }
 
-func (connection *Connection) Connect(content config.Content) {
+var __config_content = config.Content{}
+
+// Construct
+
+func InsertConfigContent(cc config.Content) {
+	__config_content = cc
+}
+
+// Connect opens sftp & sftp connection
+func (connection *Connection) Connect() {
 	var err error
-	user := getUser(content)
+	user := getUser(__config_content)
 	auth := authdata{
 		user: user,
 	}
@@ -49,6 +58,12 @@ func (connection *Connection) Connect(content config.Content) {
 		log.Fatal(err)
 	}
 
+}
+
+// Disconnect closes sftp & ssh connection
+func (connection *Connection) Disconnect() {
+	connection.Client.sftp.Close()
+	connection.Client.ssh.Close()
 }
 
 func (client *client) SetClientConfig(auth authdata) {
@@ -75,7 +90,7 @@ func (client *client) SetClientConfig(auth authdata) {
 	}
 }
 
-func (client *client) ListRemote(path string) []string {
+func (client *client) ListDir(path string) []string {
 	var arr []string
 
 	w := client.sftp.Walk(path)
@@ -88,10 +103,8 @@ func (client *client) ListRemote(path string) []string {
 	return arr
 }
 
-// Disconnect closes sftp & ssh connection
-func (client *client) Disconnect() {
-	client.sftp.Close()
-	client.ssh.Close()
+func (client *client) GetSFTPConnection() *sftp.Client {
+	return client.sftp
 }
 
 // Local functions
