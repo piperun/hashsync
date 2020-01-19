@@ -1,4 +1,4 @@
-package fileIO
+package filesystem
 
 import (
 	"log"
