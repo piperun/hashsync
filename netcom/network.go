@@ -7,8 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/piperun/hashsync/config"
-
+	"github.com/piperun/hashsync/settings"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -28,11 +27,11 @@ type authdata struct {
 	authmethod uint
 }
 
-var __config_content = config.Content{}
+var __config_content = settings.Content{}
 
 // Construct
 
-func InsertConfigContent(cc config.Content) {
+func InsertConfigContent(cc settings.Content) {
 	__config_content = cc
 }
 
@@ -109,7 +108,7 @@ func (client *client) GetSFTPConnection() *sftp.Client {
 
 // Local functions
 
-func getUser(content config.Content) map[string]string {
+func getUser(content settings.Content) map[string]string {
 	var user = map[string]string{
 		"user":      "",
 		"password":  "",

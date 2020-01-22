@@ -1,11 +1,11 @@
-package config
+package settings
 
 import (
 	"log"
 	"os"
 
 	"github.com/pelletier/go-toml"
-	"github.com/piperun/hashsync/fileIO"
+	"github.com/piperun/hashsync/filesystem/file"
 )
 
 // SSH options
@@ -19,13 +19,15 @@ type SSH struct {
 
 // Path options
 type Paths struct {
+	Database   string `toml:"database"`
 	Root       string `toml:"root"`
 	RemoteRoot string `toml:"remoteroot"`
 }
 
 // General options
 type General struct {
-	MThreaded bool `toml:"MultiThread"`
+	MThreaded      bool     `toml:"MultiThread"`
+	BlacklistedDir []string `toml:"Blacklist_dir"`
 }
 
 // Body of the config file
@@ -66,8 +68,10 @@ func (content *Content) LoadTree() {
 
 func (content *Content) Setup(path string) {
 	content.Path = path
-	if !fileIO.CheckFile(path) && len(path) > 0 {
+	if !file.CheckFile(path) && len(path) > 0 {
 		content.createConf()
+	} else {
+
 	}
 }
 
@@ -105,7 +109,7 @@ func (content *Content) createConf() {
 func (content *Content) LoadStruct() {
 	file, err := os.OpenFile(content.Path, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(content.Path, err)
 	}
 	defer file.Close()
 

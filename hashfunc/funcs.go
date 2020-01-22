@@ -7,38 +7,27 @@ import (
 	"hash/crc32"
 	"io"
 	"log"
-	"os"
 
-	"github.com/piperun/hashsync/fileIO"
+	"github.com/piperun/hashsync/filesystem/file"
 )
 
 type Object struct {
-	hash hash.Hash32
-	File interface{}
+	hash32 hash.Hash32
+	hash   hash.Hash
+	Source interface{}
 }
 
-func (object *Object) convertFiletoHash() {
-	const size int64 = 1e9
-	switch file := object.File.(type) {
-	case fileIO.LocalFile:
-		if _, err := io.Copy(object.hash, file.Data); err != nil {
-			log.Print(err)
-		}
-		defer file.Close()
-	case fileIO.RemoteFile:
-		if _, err := io.Copy(object.hash, file.Data); err != nil {
-			log.Print(err)
-		}
-		defer file.Close()
-	}
+type HashSum struct {
+	Hex string
+	Int uint32
 }
 
 // CRC32 hash function
-func (object *Object) CRC32(hashversion ...string) string {
+func (object *Object) CRC32(hashversion ...string) HashSum {
 	var (
-		versions   = make(map[string]uint32)
-		table      *crc32.Table
-		hashstring string
+		versions = make(map[string]uint32)
+		table    *crc32.Table
+		hashsum  HashSum
 	)
 
 	versions["C"] = 0x82F63B78
@@ -52,35 +41,59 @@ func (object *Object) CRC32(hashversion ...string) string {
 		table = crc32.MakeTable(versions[hashversion[0]])
 	}
 
-	object.hash = crc32.New(table)
-	object.convertFiletoHash()
+	object.hash32 = crc32.New(table)
+	object.convertCorrectType()
 
-	hashstring = hex.EncodeToString(object.hash.Sum(nil)[:])
+	hashsum.Hex = hex.EncodeToString(object.hash32.Sum(nil)[:])
+	hashsum.Int = object.hash32.Sum32()
 	if false {
-		log.Print(hashstring)
+		log.Print(hashsum.Hex)
 	}
 
-	return hashstring
+	return hashsum
 
 }
 
 //SHA256 hash function
-func SHA256(str string, hashversion ...string) string {
-	var sha hash.Hash
+func (object *Object) SHA256(hashversion ...string) HashSum {
+	var (
+		hashsum HashSum
+	)
 
 	if hashversion == nil || len(hashversion[0]) <= 0 {
 
 	}
-	sha = sha256.New()
-	sha.Write([]byte(str))
-	if false {
-		log.Print(sha.Sum(nil), hex.EncodeToString(sha.Sum(nil)[:]))
-	}
-	return hex.EncodeToString(sha.Sum(nil)[:])
+	object.hash = sha256.New()
+	object.convertCorrectType()
 
+	if false {
+		log.Print(object.hash.Sum(nil), hex.EncodeToString(object.hash.Sum(nil)[:]))
+	}
+	hashsum.Hex = hex.EncodeToString(object.hash.Sum(nil)[:])
+	return hashsum
 }
 
-//SHA256 file hash function
-func SHA256FILE(file *os.File, hashversion ...string) {
+// Local functions
 
+func (object *Object) convertCorrectType() {
+
+	// atm this ugly hack is the only to make it work.
+	switch filetype := object.Source.(type) {
+	case file.LocalFile:
+		if _, err := io.Copy(object.hash32, filetype.Data); err != nil {
+			log.Print(err)
+		}
+		filetype.Close()
+
+	case file.RemoteFile:
+		if _, err := io.Copy(object.hash32, filetype.Data); err != nil {
+			log.Print(err)
+		}
+		filetype.Close()
+	case string:
+
+		object.hash.Write([]byte(filetype))
+	case []byte:
+		object.hash.Write(filetype)
+	}
 }

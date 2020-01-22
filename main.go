@@ -3,34 +3,45 @@ package main
 import (
 	"log"
 
+	"github.com/piperun/hashsync/hashdb"
+
+	"github.com/piperun/hashsync/filesystem/folder"
+
 	"github.com/piperun/hashsync/netcom"
-	"github.com/piperun/hashsync/registry"
-
-	"github.com/piperun/hashsync/config"
-	"github.com/piperun/hashsync/hashfunc"
+	"github.com/piperun/hashsync/settings"
 )
-
-type OSvars struct {
-	separator string
-}
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Llongfile)
 	var (
-		filename     string
-		conf_content config.Content
+		conf_content settings.Content
 	)
 	connection := netcom.Connection{}
 
-	registry.HandleFlags()
+	settings.HandleFlags()
 
-	conf_content.Setup(registry.GetConfigPath())
+	conf_content.Setup(settings.GetConfigPath())
 	conf_content.LoadTree()
 
-	filename = ""
-	hashfunc.CRC32(filename)
-	hashfunc.SHA256(filename)
-	connection.Connect(conf_content)
-	connection.Client.Disconnect()
+	netcom.InsertConfigContent(conf_content)
+	connection.Connect()
+
+	initDB("HostFS", "Cache")
+	//folder.LocalWalk(conf_content.Query("Paths.root"))
+	folder.RemoteWalk(connection, conf_content.Query("Paths.remoteroot"), conf_content.Query("SSH.conn_ip"))
+	hashdb.PrintCollection("HostFS")
+	hashdb.PrintCollection("Cache")
+	//log.Print(hashobj.CRC32())
+
+	connection.Disconnect()
+
+}
+
+func initDB(collections ...string) {
+	for _, col := range collections {
+		if !hashdb.CheckCollectionExists(col) {
+			hashdb.CreateCollection(col)
+		}
+	}
 
 }
