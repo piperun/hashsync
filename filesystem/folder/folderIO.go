@@ -37,50 +37,46 @@ func SavetoCache(IP string) {
 func LocalWalk(root string) {
 	const hostIP = "127.0.0.1"
 	var (
-		path, folder_hash string
-		local_file        file.LocalFile
-		hashobject        hashfunc.Object
-		hashsum           hashfunc.HashSum
-		HostFS            hashdb.DBContent
-		hostData          = make(HostData)
-		dir               = make(Folder)
-		sub_files         = make(map[string]string)
+		dirpath, dirname, prevdir string
+		local_file                file.LocalFile
+		file_hashsum, dir_hashsum hashfunc.HashSum
+		HostFS                    hashdb.DBContent
+		hostData                  = make(HostData)
+		dir                       = make(Folder)
+		sub_files                 = make(map[string]string)
 	)
 	HostFS.LoadCollection("HostFS")
 
 	err := godirwalk.Walk(root, &godirwalk.Options{
-		Callback: func(osPathname string, de *godirwalk.Dirent) error {
+		Callback: func(currpath string, de *godirwalk.Dirent) error {
+			if de.IsDir() == true {
+				if dirpath != currpath && dirpath != "" {
+					hostData[hostIP] = createhostData(dirpath, dir_hashsum.Hex, sub_files)
+					prevdir = dirpath
 
-			if de.IsDir() == true && de.IsSymlink() == false {
-				if path != osPathname && path != "" {
-					dir[path] = folderData{
-						Files: sub_files,
-						Hash:  folder_hash,
-					}
-					hostData[hostIP] = dir
 					hostID[hostIP] = append(hostID[hostIP], HostFS.AddDocument(hostData))
-					delete(dir, path)
+					delete(dir, dirpath)
 					sub_files = make(map[string]string)
 					debug.FreeOSMemory()
 				}
-				path = osPathname
-				hashobject.Source = de.Name()
-				hashsum = hashobject.SHA256()
-				folder_hash = hashsum.Hex
+				dirpath = currpath
+				dirname = de.Name()
+				dir_hashsum = createhashSum(dirname)
 
-			} else if de.IsRegular() == true {
-				local_file.Name = osPathname
+			} else if de.IsRegular() == true && de.IsSymlink() == false {
+
+				local_file.Name = currpath
 				local_file.Open()
-				hashobject.Source = local_file
-				hashsum = hashobject.CRC32()
+				file_hashsum = createhashSum(local_file)
 				local_file.Close()
-				sub_files[hashsum.Hex] = de.Name()
+
+				sub_files[file_hashsum.Hex] = de.Name()
 
 			}
 
 			return nil
 		},
-		ErrorCallback: func(osPathname string, err error) godirwalk.ErrorAction {
+		ErrorCallback: func(currpath string, err error) godirwalk.ErrorAction {
 
 			// For the purposes of this example, a simple SkipNode will suffice,
 			// although in reality perhaps additional logic might be called for.
@@ -89,6 +85,11 @@ func LocalWalk(root string) {
 		Unsorted: true, // (optional) set true for faster yet non-deterministic enumeration (see godoc)
 	})
 	fmt.Print(err)
+	if prevdir == "" {
+
+		hostData[hostIP] = createhostData(dirpath, dir_hashsum.Hex, sub_files)
+		hostID[hostIP] = append(hostID[hostIP], HostFS.AddDocument(hostData))
+	}
 	SavetoCache(hostIP)
 
 }

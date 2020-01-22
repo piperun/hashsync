@@ -27,8 +27,8 @@ func main() {
 	connection.Connect()
 
 	initDB("HostFS", "Cache")
-	//folder.LocalWalk(conf_content.Query("Paths.root"))
-	folder.RemoteWalk(connection, conf_content.Query("Paths.remoteroot"), conf_content.Query("SSH.conn_ip"))
+	folder.LocalWalk(conf_content.Query("Paths.root"))
+	//folder.RemoteWalk(connection, conf_content.Query("Paths.remoteroot"), conf_content.Query("SSH.conn_ip"))
 	hashdb.PrintCollection("HostFS")
 	hashdb.PrintCollection("Cache")
 	//log.Print(hashobj.CRC32())
